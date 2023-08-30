@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GlobalStyle } from './GlobalStyle';
 import { fetchImages } from 'services/PixabayAPI';
 import { Layout } from './Layout/Layout';
@@ -11,123 +11,93 @@ import { Button } from './Button/Button';
 import { Loader } from './Loader/Loader';
 import { Modal } from './Modal/Modal';
 
-export class App extends Component {
-  state = {
-    images: [],
-    searchText: '',
-    page: 1,
-    total: 1,
-    isModalOpen: false,
-    largeImageURL: '',
-    imageTags: '',
-    loading: false,
-    error: '',
-  };
+function App() {
+  const [images, setImages] = useState([]);
+  const [searchText, setSearchText] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(1);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [largeImageURL, setLargeImageURL] = useState('');
+  const [imageTags, setImageTags] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  componentDidUpdate(_, prevState) {
-    const { searchText, page } = this.state;
+  useEffect(() => {
+    const fetchImagesData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const fetchedImages = await fetchImages(searchText, page);
 
-    if (prevState.searchText !== searchText || prevState.page !== page) {
-      this.fetchImages();
-    }
-  }
-
-  handleSubmit = searchValue => {
-    this.setState({
-      searchText: searchValue,
-      images: [],
-      page: 1,
-    });
-  };
-
-  fetchImages = async () => {
-    const { searchText, page } = this.state;
-    try {
-      this.setState({ loading: true, error: null });
-      const fetchedImages = await fetchImages(searchText, page);
-
-      this.setState(prevState => ({
-        images: [...prevState.images, ...fetchedImages.hits],
-        total: fetchedImages.total,
-      }));
-    } catch (error) {
-      this.setState({
-        error: `An error occurred: ${error.message}`,
-      });
-    } finally {
-      this.setState({ loading: false });
-    }
-  };
-
-  onLoadMore = () => {
-    this.setState(prevState => ({
-      page: prevState.page + 1,
-    }));
-  };
-
-  toggleModal = (largeImageURL, tags) => {
-    this.setState(({ isModalOpen }) => {
-      if (!this.state.isModalOpen) {
-        return {
-          isModalOpen: !isModalOpen,
-          largeImageURL: largeImageURL,
-          imageTags: tags,
-        };
+        setImages(prevImages => [...prevImages, ...fetchedImages.hits]);
+        setTotal(fetchedImages.total);
+      } catch (error) {
+        setError(`An error occurred: ${error.message}`);
+      } finally {
+        setLoading(false);
       }
-      return {
-        isModalOpen: !isModalOpen,
-        largeImageURL: '',
-        imageTags: '',
-      };
-    });
+    };
+
+    if (searchText !== '' || page !== 1) {
+      fetchImagesData();
+    }
+  }, [searchText, page]);
+
+  const handleSubmit = searchValue => {
+    setSearchText(searchValue);
+    setImages([]);
+    setPage(1);
   };
 
-  render() {
-    const {
-      searchText,
-      loading,
-      images,
-      error,
-      total,
-      page,
-      isModalOpen,
-      largeImageURL,
-      imageTags,
-    } = this.state;
+  const onLoadMore = () => {
+    setPage(prevPage => prevPage + 1);
+  };
 
-    return (
-      <Layout>
-        <Header>
-          <Searchbar onSubmit={this.handleSubmit} />
-        </Header>
-        <Section>
-          <ImageGallery>
-            <ImageGalleryItem images={images} toggleModal={this.toggleModal} />
-          </ImageGallery>
-          {error && <h2>{error}</h2>}
+  const toggleModal = (largeImageURL, tags) => {
+    if (!isModalOpen) {
+      setIsModalOpen(true);
+      setLargeImageURL(largeImageURL);
+      setImageTags(tags);
+    } else {
+      setIsModalOpen(false);
+      setLargeImageURL('');
+      setImageTags('');
+    }
+  };
 
-          {total === 0 && (
-            <h2 style={{ textAlign: 'center' }}>
-              Sorry, there are no images matching your request "{searchText}"
-              ...
-            </h2>
-          )}
+  return (
+    <Layout>
+      <Header>
+        <Searchbar onSubmit={handleSubmit} />
+      </Header>
+      <Section>
+        <ImageGallery>
+          <ImageGalleryItem images={images} toggleModal={toggleModal} />
+        </ImageGallery>
+        {error && <h2>{error}</h2>}
 
-          {total / 12 > page && !loading && (
-            <Button text="Load more" onClick={this.onLoadMore} />
-          )}
-        </Section>
-        {loading && <Loader />}
-
-        {isModalOpen && (
-          <Modal
-            imageURL={largeImageURL}
-            imageTags={imageTags}
-            toggleModal={this.toggleModal}
-          />
+        {total === 0 && (
+          <h2 style={{ textAlign: 'center' }}>
+            Sorry, there are no images matching your request "{searchText}"...
+          </h2>
         )}
-        <GlobalStyle />
-      </Layout>
-    );
-  }
+
+        {total / 12 > page && !loading && (
+          <Button text="Load more" onClick={onLoadMore} />
+        )}
+      </Section>
+      {loading && <Loader />}
+
+      {isModalOpen && (
+        <Modal
+          imageURL={largeImageURL}
+          imageTags={imageTags}
+          toggleModal={toggleModal}
+        />
+      )}
+      <GlobalStyle />
+    </Layout>
+  );
 }
+
+export default App;
