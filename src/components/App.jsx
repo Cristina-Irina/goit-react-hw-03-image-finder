@@ -11,8 +11,6 @@ import { Button } from './Button/Button';
 import { Loader } from './Loader/Loader';
 import { Modal } from './Modal/Modal';
 
-const IMAGE_ON_PAGE = 12;
-
 export class App extends Component {
   state = {
     images: [],
